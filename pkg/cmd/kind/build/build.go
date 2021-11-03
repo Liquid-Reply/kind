@@ -23,6 +23,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"sigs.k8s.io/kind/pkg/cmd"
+	"sigs.k8s.io/kind/pkg/cmd/kind/build/krustletimage"
 	"sigs.k8s.io/kind/pkg/cmd/kind/build/nodeimage"
 	"sigs.k8s.io/kind/pkg/log"
 )
@@ -33,8 +34,8 @@ func NewCommand(logger log.Logger, streams cmd.IOStreams) *cobra.Command {
 		Args: cobra.NoArgs,
 		// TODO(bentheelder): more detailed usage
 		Use:   "build",
-		Short: "Build one of [node-image]",
-		Long:  "Build one of [node-image]",
+		Short: "Build one of [node-image, krustlet-image]",
+		Long:  "Build one of [node-image, krustlet-image]",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			err := cmd.Help()
 			if err != nil {
@@ -45,5 +46,6 @@ func NewCommand(logger log.Logger, streams cmd.IOStreams) *cobra.Command {
 	}
 	// add subcommands
 	cmd.AddCommand(nodeimage.NewCommand(logger, streams))
+	cmd.AddCommand(krustletimage.NewCommand(logger, streams))
 	return cmd
 }
