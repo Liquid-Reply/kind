@@ -126,6 +126,41 @@ func (c *buildContext) buildImage(bits kube.Bits) error {
 		return err
 	}
 
+	if err := createFile(cmder, "/etc/systemd/system/krustlet.service",
+		`# slightly modified from:
+	# https://github.com/kubernetes/kubernetes/blob/ba8fcafaf8c502a454acd86b728c857932555315/build/debs/kubelet.service
+	[Unit]
+	Description=krustlet: Kubernetes Kubelet in Rust for running WASM
+	Documentation=https://docs.krustlet.dev/
+	# ConditionPathExists=/var/lib/kubelet/config.yaml
+	
+	[Service]
+	ENVIRONMENT=KUBECONFIG=~/.krustlet/config/kubeconfig
+	ExecStart=/usr/bin/krustlet-init.sh
+	Restart=always
+	StartLimitInterval=0
+	# NOTE: kind deviates from upstream here with a lower RestartSecuse
+	RestartSec=1s
+	
+	[Install]
+	WantedBy=multi-user.target
+	`); err != nil {
+		return err
+	}
+	if err := createFile(cmder, "/usr/bin/krustlet-init.sh",
+		`#!/bin/bash
+
+	IP=$(ip addr show eth0 | grep "inet\b" | awk '{print $2}' | cut -d/ -f1)
+	echo $IP
+	PORT=10250
+	KUBECONFIG=/etc/kubernetes/kubeconfig krustlet-wasi --node-ip=$IP --port=10250`); err != nil {
+		return err
+	}
+
+	if err := execInBuild("chmod", "+x", "/usr/bin/krustlet-init.sh"); err != nil {
+		return err
+	}
+
 	// write version
 	// TODO: support grabbing version from a binary instead
 	if err := createFile(cmder, "/kind/version", bits.Version()); err != nil {

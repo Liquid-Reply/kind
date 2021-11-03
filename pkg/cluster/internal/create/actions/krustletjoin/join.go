@@ -18,6 +18,8 @@ limitations under the License.
 package krustletjoin
 
 import (
+	"strings"
+
 	"sigs.k8s.io/kind/pkg/cluster/constants"
 	"sigs.k8s.io/kind/pkg/cluster/nodes"
 	"sigs.k8s.io/kind/pkg/errors"
@@ -26,9 +28,9 @@ import (
 	"sigs.k8s.io/kind/pkg/cluster/nodeutils"
 
 	"sigs.k8s.io/kind/pkg/cluster/internal/create/actions"
-
 	"sigs.k8s.io/kind/pkg/cluster/internal/kubeconfig"
 	"sigs.k8s.io/kind/pkg/cluster/internal/providers"
+	"sigs.k8s.io/kind/pkg/exec"
 )
 
 // Action implements action for creating the kubeadm join
@@ -121,7 +123,27 @@ func runKubeadmJoin(logger log.Logger, node nodes.Node, provider providers.Provi
 	logger.V(2).Info(config)
 	// run kubeadm join
 	// TODO(bentheelder): this should be using the config file
-	nodeutils.WriteFile(node, "/etc/kubernetes/kubeconfig", config)
+	err := nodeutils.WriteFile(node, "/etc/kubernetes/kubeconfig", config)
+	if err != nil {
+		return errors.Wrap(err, "failed to write kubeconfig")
+	}
 
+	cmd := node.Command(
+		"systemctl", "enable", "krustlet",
+	)
+	lines, err := exec.CombinedOutputLines(cmd)
+	logger.V(3).Info(strings.Join(lines, "\n"))
+	if err != nil {
+		return errors.Wrap(err, "failed to enable krustlet sevice")
+	}
+
+	cmd = node.Command(
+		"systemctl", "start", "krustlet",
+	)
+	lines, err = exec.CombinedOutputLines(cmd)
+	logger.V(3).Info(strings.Join(lines, "\n"))
+	if err != nil {
+		return errors.Wrap(err, "failed to run `systemctl start krustlet`")
+	}
 	return nil
 }
