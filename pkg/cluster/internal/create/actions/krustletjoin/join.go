@@ -19,6 +19,7 @@ package krustletjoin
 
 import (
 	"strings"
+	"time"
 
 	"sigs.k8s.io/kind/pkg/cluster/constants"
 	"sigs.k8s.io/kind/pkg/cluster/nodes"
@@ -49,54 +50,28 @@ func (a *Action) Execute(ctx *actions.ActionContext) error {
 		return err
 	}
 
-	// join secondary control plane nodes if any
-	secondaryControlPlanes, err := nodeutils.SecondaryControlPlaneNodes(allNodes)
-	if err != nil {
-		return err
-	}
-	if len(secondaryControlPlanes) > 0 {
-		if err := joinSecondaryControlPlanes(ctx, secondaryControlPlanes); err != nil {
-			return err
-		}
-	}
-
 	// then join worker nodes if any
 	workers, err := nodeutils.SelectNodesByRole(allNodes, constants.KrustletNodeRoleValue)
 	if err != nil {
 		return err
 	}
+	cpNodes, err := nodeutils.SelectNodesByRole(allNodes, constants.ControlPlaneNodeRoleValue)
+	if err != nil {
+		return err
+	}
 	if len(workers) > 0 {
-		if err := joinWorkers(ctx, workers); err != nil {
+		if err := joinWorkers(ctx, workers, cpNodes[0]); err != nil {
 			return err
 		}
 	}
 
-	return nil
-}
-
-func joinSecondaryControlPlanes(
-	ctx *actions.ActionContext,
-	secondaryControlPlanes []nodes.Node,
-) error {
-	ctx.Status.Start("Joining more control-plane nodes 🎮")
-	defer ctx.Status.End(false)
-
-	// TODO(bentheelder): it's too bad we can't do this concurrently
-	// (this is not safe currently)
-	for _, node := range secondaryControlPlanes {
-		node := node // capture loop variable
-		if err := runKubeadmJoin(ctx.Logger, node, ctx.Provider, ctx.Config.Name); err != nil {
-			return err
-		}
-	}
-
-	ctx.Status.End(true)
 	return nil
 }
 
 func joinWorkers(
 	ctx *actions.ActionContext,
 	workers []nodes.Node,
+	cpNode nodes.Node,
 ) error {
 	ctx.Status.Start("Joining krustlet nodes 🦀")
 	defer ctx.Status.End(false)
@@ -106,7 +81,7 @@ func joinWorkers(
 	for _, node := range workers {
 		node := node // capture loop variable
 		fns = append(fns, func() error {
-			return runKubeadmJoin(ctx.Logger, node, ctx.Provider, ctx.Config.Name)
+			return runKubeadmJoin(ctx.Logger, node, ctx.Provider, ctx.Config.Name, cpNode)
 		})
 	}
 	if err := errors.UntilErrorConcurrent(fns); err != nil {
@@ -118,9 +93,8 @@ func joinWorkers(
 }
 
 // runKubeadmJoin executes kubeadm join command
-func runKubeadmJoin(logger log.Logger, node nodes.Node, provider providers.Provider, name string) error {
+func runKubeadmJoin(logger log.Logger, node nodes.Node, provider providers.Provider, name string, cpNode nodes.Node) error {
 	config, _ := kubeconfig.Get(provider, name, false)
-	logger.V(2).Info(config)
 	// run kubeadm join
 	// TODO(bentheelder): this should be using the config file
 	err := nodeutils.WriteFile(node, "/etc/kubernetes/kubeconfig", config)
@@ -145,5 +119,27 @@ func runKubeadmJoin(logger log.Logger, node nodes.Node, provider providers.Provi
 	if err != nil {
 		return errors.Wrap(err, "failed to run `systemctl start krustlet`")
 	}
+
+	for i := 0; i <= 10; i++ {
+		time.Sleep(time.Second)
+		err = cpNode.Command(
+			"kubectl", "--kubeconfig", "/etc/kubernetes/admin.conf", "get", "csr", node.String()+"-tls",
+		).Run()
+		if err == nil {
+			break
+		} else {
+			logger.Error(err.Error())
+		}
+	}
+
+	cmd = cpNode.Command(
+		"kubectl", "--kubeconfig", "/etc/kubernetes/admin.conf", "certificate", "approve", node.String()+"-tls",
+	)
+	lines, err = exec.CombinedOutputLines(cmd)
+	logger.V(3).Info(strings.Join(lines, "\n"))
+	if err != nil {
+		return errors.Wrap(err, "failed to run `systemctl start krustlet`")
+	}
+
 	return nil
 }
