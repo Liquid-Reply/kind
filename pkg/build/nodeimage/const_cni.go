@@ -92,7 +92,9 @@ spec:
     spec:
       hostNetwork: true
       tolerations:
-      - operator: Exists
+      - effect: NoSchedule
+        key: node-role.kubernetes.io/master
+        operator: Exists
       serviceAccountName: kindnet
       containers:
       - name: kindnet-cni
