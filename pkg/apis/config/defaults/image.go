@@ -19,3 +19,6 @@ package defaults
 
 // Image is the default for the Config.Image field, aka the default node image.
 const Image = "kindest/node:v1.22.2@sha256:9af3ab3e36fb59890b2fb3a18000930b4792d62d10d2060e0ca701e2c392d487"
+
+// Default image for Krustlet node
+const KrustletImage = "ghcr.io/liquid-reply/kind/krustlet@sha256:82c91351e3a5b38d39623430a8c38542e16e87b258c2e720928bff1c8532fff1"

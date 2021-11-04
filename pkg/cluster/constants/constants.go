@@ -31,6 +31,9 @@ const (
 	// WorkerNodeRoleValue identifies a node that hosts a Kubernetes worker
 	WorkerNodeRoleValue string = "worker"
 
+	// KrustletNodeRoleValue identifies a node that hosts a Kubernetes krustlet worker
+	KrustletNodeRoleValue string = "krustlet"
+
 	// ExternalLoadBalancerNodeRoleValue identifies a node that hosts an
 	// external load balancer for the API server in HA configurations.
 	//

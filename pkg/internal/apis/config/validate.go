@@ -103,7 +103,8 @@ func (n *Node) Validate() error {
 	// validate node role should be one of the expected values
 	switch n.Role {
 	case ControlPlaneRole,
-		WorkerRole:
+		WorkerRole,
+		KrustletWorkerRole:
 	default:
 		errs = append(errs, errors.Errorf("%q is not a valid node role", n.Role))
 	}

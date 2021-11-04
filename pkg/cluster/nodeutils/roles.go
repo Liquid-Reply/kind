@@ -51,7 +51,7 @@ func InternalNodes(allNodes []nodes.Node) ([]nodes.Node, error) {
 		if err != nil {
 			return nil, err
 		}
-		if nodeRole == constants.WorkerNodeRoleValue || nodeRole == constants.ControlPlaneNodeRoleValue {
+		if nodeRole == constants.WorkerNodeRoleValue || nodeRole == constants.ControlPlaneNodeRoleValue || nodeRole == constants.KrustletNodeRoleValue {
 			selectedNodes = append(selectedNodes, node)
 		}
 	}

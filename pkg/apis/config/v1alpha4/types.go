@@ -158,6 +158,8 @@ const (
 	ControlPlaneRole NodeRole = "control-plane"
 	// WorkerRole identifies a node that hosts a Kubernetes worker
 	WorkerRole NodeRole = "worker"
+	// KrustletWorkerRole identifies a node that hosts a Krustlet instead of a kubelet as worker
+	KrustletWorkerRole NodeRole = "krustlet"
 )
 
 // Networking contains cluster wide network settings

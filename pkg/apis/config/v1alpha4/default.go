@@ -81,7 +81,11 @@ func SetDefaultsCluster(obj *Cluster) {
 // SetDefaultsNode sets uninitialized fields to their default value.
 func SetDefaultsNode(obj *Node) {
 	if obj.Image == "" {
-		obj.Image = defaults.Image
+		if obj.Role == KrustletWorkerRole {
+			obj.Image = defaults.KrustletImage
+		} else {
+			obj.Image = defaults.Image
+		}
 	}
 
 	if obj.Role == "" {
